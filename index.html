@@ -1,18 +1,26 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#2c5282">
+    <meta name="description" content="Sistema de Registro de Manutenções - Troca de Turno">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Troca Turno">
     <title>Troca de Turno</title>
+    <link rel="manifest" href="manifest.json">
     <link rel="stylesheet" href="styles.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="apple-touch-icon" href="icons/icon-192x192.png">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
+
 <body>
     <div class="container">
         <header class="header">
             <div class="logo">
-                <div class="logo-icon">🔧</div>
                 <h1>Troca de Turno</h1>
             </div>
             <p class="subtitle">Sistema de Registro de Manutenções</p>
@@ -22,7 +30,6 @@
             <!-- Seleção de Turno -->
             <section class="shift-section">
                 <h2 class="section-title">
-                    <span class="icon">⏰</span>
                     Selecione o Turno
                 </h2>
                 <div class="shift-buttons">
@@ -41,7 +48,6 @@
             <!-- Manutenções a Realizar -->
             <section class="maintenance-section">
                 <h2 class="section-title">
-                    <span class="icon">📋</span>
                     Manutenções a Serem Realizadas
                 </h2>
                 <div class="table-container">
@@ -67,7 +73,6 @@
             <!-- Manutenções Realizadas -->
             <section class="maintenance-section completed">
                 <h2 class="section-title">
-                    <span class="icon">✅</span>
                     Manutenções Realizadas no Turno
                 </h2>
                 <div class="table-container">
@@ -93,15 +98,12 @@
             <!-- Botões de Ação -->
             <section class="action-section">
                 <button class="action-btn clear" onclick="clearAll()">
-                    <span class="btn-icon">🗑️</span>
                     Limpar Tudo
                 </button>
                 <button class="action-btn generate" onclick="generateReport()">
-                    <span class="btn-icon">📸</span>
                     Gerar Imagem
                 </button>
                 <button class="action-btn pdf" onclick="printPDF()">
-                    <span class="btn-icon">📄</span>
                     Imprimir PDF
                 </button>
             </section>
@@ -111,7 +113,6 @@
         <div id="reportContainer" class="report-container">
             <div id="report" class="report">
                 <div class="report-header">
-                    <div class="report-logo">🔧</div>
                     <h1>TROCA DE TURNO</h1>
                     <div class="report-info">
                         <div class="info-item">
@@ -126,7 +127,7 @@
                 </div>
 
                 <div class="report-section pending">
-                    <h2>📋 MANUTENÇÕES A SEREM REALIZADAS</h2>
+                    <h2>MANUTENÇÕES A SEREM REALIZADAS</h2>
                     <table>
                         <thead>
                             <tr>
@@ -141,7 +142,7 @@
                 </div>
 
                 <div class="report-section completed">
-                    <h2>✅ MANUTENÇÕES REALIZADAS NO TURNO</h2>
+                    <h2>MANUTENÇÕES REALIZADAS NO TURNO</h2>
                     <table>
                         <thead>
                             <tr>
@@ -164,4 +165,5 @@
 
     <script src="script.js"></script>
 </body>
+
 </html>
