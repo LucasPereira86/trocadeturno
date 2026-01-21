@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Troca de Turno</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="logo">
+                <div class="logo-icon">🔧</div>
+                <h1>Troca de Turno</h1>
+            </div>
+            <p class="subtitle">Sistema de Registro de Manutenções</p>
+        </header>
+
+        <main class="main-content">
+            <!-- Seleção de Turno -->
+            <section class="shift-section">
+                <h2 class="section-title">
+                    <span class="icon">⏰</span>
+                    Selecione o Turno
+                </h2>
+                <div class="shift-buttons">
+                    <button class="shift-btn" data-shift="A" onclick="selectShift('A')">
+                        <span class="shift-letter">A</span>
+                    </button>
+                    <button class="shift-btn" data-shift="B" onclick="selectShift('B')">
+                        <span class="shift-letter">B</span>
+                    </button>
+                    <button class="shift-btn" data-shift="C" onclick="selectShift('C')">
+                        <span class="shift-letter">C</span>
+                    </button>
+                </div>
+            </section>
+
+            <!-- Manutenções a Realizar -->
+            <section class="maintenance-section">
+                <h2 class="section-title">
+                    <span class="icon">📋</span>
+                    Manutenções a Serem Realizadas
+                </h2>
+                <div class="table-container">
+                    <table class="maintenance-table" id="pendingTable">
+                        <thead>
+                            <tr>
+                                <th>Frota</th>
+                                <th>Manutenção a Ser Realizada</th>
+                                <th>Observação</th>
+                                <th class="action-col">Ação</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pendingBody">
+                        </tbody>
+                    </table>
+                </div>
+                <button class="add-btn" onclick="addRow('pending')">
+                    <span class="plus-icon">+</span>
+                    Adicionar Manutenção
+                </button>
+            </section>
+
+            <!-- Manutenções Realizadas -->
+            <section class="maintenance-section completed">
+                <h2 class="section-title">
+                    <span class="icon">✅</span>
+                    Manutenções Realizadas no Turno
+                </h2>
+                <div class="table-container">
+                    <table class="maintenance-table" id="completedTable">
+                        <thead>
+                            <tr>
+                                <th>Frota</th>
+                                <th>Manutenções Realizadas</th>
+                                <th>Observação</th>
+                                <th class="action-col">Ação</th>
+                            </tr>
+                        </thead>
+                        <tbody id="completedBody">
+                        </tbody>
+                    </table>
+                </div>
+                <button class="add-btn completed" onclick="addRow('completed')">
+                    <span class="plus-icon">+</span>
+                    Adicionar Manutenção
+                </button>
+            </section>
+
+            <!-- Botões de Ação -->
+            <section class="action-section">
+                <button class="action-btn clear" onclick="clearAll()">
+                    <span class="btn-icon">🗑️</span>
+                    Limpar Tudo
+                </button>
+                <button class="action-btn generate" onclick="generateReport()">
+                    <span class="btn-icon">📸</span>
+                    Gerar Imagem
+                </button>
+                <button class="action-btn pdf" onclick="printPDF()">
+                    <span class="btn-icon">📄</span>
+                    Imprimir PDF
+                </button>
+            </section>
+        </main>
+
+        <!-- Relatório para Impressão -->
+        <div id="reportContainer" class="report-container">
+            <div id="report" class="report">
+                <div class="report-header">
+                    <div class="report-logo">🔧</div>
+                    <h1>TROCA DE TURNO</h1>
+                    <div class="report-info">
+                        <div class="info-item">
+                            <strong>Turno:</strong>
+                            <span id="reportShift">-</span>
+                        </div>
+                        <div class="info-item">
+                            <strong>Data:</strong>
+                            <span id="reportDate">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="report-section pending">
+                    <h2>📋 MANUTENÇÕES A SEREM REALIZADAS</h2>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>FROTA</th>
+                                <th>MANUTENÇÃO A SER REALIZADA</th>
+                                <th>OBSERVAÇÃO</th>
+                            </tr>
+                        </thead>
+                        <tbody id="reportPendingBody">
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="report-section completed">
+                    <h2>✅ MANUTENÇÕES REALIZADAS NO TURNO</h2>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>FROTA</th>
+                                <th>MANUTENÇÕES REALIZADAS</th>
+                                <th>OBSERVAÇÃO</th>
+                            </tr>
+                        </thead>
+                        <tbody id="reportCompletedBody">
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="report-footer">
+                    <p>Relatório gerado automaticamente pelo Sistema de Troca de Turno</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
