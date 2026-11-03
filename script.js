@@ -15,9 +15,23 @@ const EMPTY_MESSAGES = {
     completed: 'Nenhuma manutenção realizada'
 };
 
+// Grupos de fotos de cada tabela
+const PHOTO_GROUPS = {
+    pending: [{ key: 'fotos', label: 'Fotos' }],
+    completed: [
+        { key: 'antes', label: 'Antes' },
+        { key: 'depois', label: 'Depois' }
+    ]
+};
+
+// Fotos carregadas na memória (id -> imagem em data URL)
+const photoCache = new Map();
+
 // Inicialização
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     loadFromLocalStorage();
+    renderTables();
+    await loadPhotos();
     renderTables();
 
     ['pending', 'completed'].forEach(type => {
@@ -31,10 +45,25 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
+        body.addEventListener('change', event => {
+            const input = event.target;
+            if (input.type === 'file' && input.files.length > 0) {
+                const group = input.closest('.photo-group').dataset.group;
+                addPhotos(type, input.closest('tr').dataset.id, group, [...input.files]);
+                input.value = '';
+            }
+        });
+
         body.addEventListener('click', event => {
-            const button = event.target.closest('.delete-btn');
-            if (button) {
-                removeRow(type, button.closest('tr').dataset.id);
+            const row = event.target.closest('tr');
+
+            if (event.target.closest('.delete-btn')) {
+                removeRow(type, row.dataset.id);
+            } else if (event.target.closest('.photo-remove')) {
+                const thumb = event.target.closest('.photo-thumb');
+                removePhoto(type, row.dataset.id, thumb.closest('.photo-group').dataset.group, thumb.dataset.photo);
+            } else if (event.target.closest('.photo-thumb img')) {
+                openPhotoViewer(event.target.src);
             }
         });
     });
@@ -70,7 +99,8 @@ function addRow(type) {
         id: newId(),
         frota: '',
         manutencao: '',
-        observacao: ''
+        observacao: '',
+        photos: {}
     });
 
     renderTables();
@@ -79,7 +109,16 @@ function addRow(type) {
 
 // Remover linha
 function removeRow(type, id) {
+    const item = maintenance[type].find(item => item.id === id);
+    if (!item) return;
+
+    const photoIds = allPhotoIds(item);
+    if (photoIds.length > 0 && !confirm('Esta linha tem fotos. Excluir mesmo assim?')) {
+        return;
+    }
+
     maintenance[type] = maintenance[type].filter(item => item.id !== id);
+    photoIds.forEach(deletePhotoData);
     renderTables();
     saveToLocalStorage();
 }
@@ -93,11 +132,20 @@ function updateItem(type, id, field, value) {
     }
 }
 
+// Fotos de um grupo do item
+function itemPhotos(item, group) {
+    return (item.photos && item.photos[group]) || [];
+}
+
+function allPhotoIds(item) {
+    return Object.values(item.photos || {}).flat();
+}
+
 // Renderizar tabelas
 function renderTables() {
     ['pending', 'completed'].forEach(type => {
         document.getElementById(`${type}Body`).innerHTML = maintenance[type].map(item => `
-            <tr data-id="${escapeHtml(item.id)}">
+            <tr class="item-row" data-id="${escapeHtml(item.id)}">
                 <td>
                     <input type="text"
                            value="${escapeHtml(item.frota)}"
@@ -118,14 +166,183 @@ function renderTables() {
                     <button class="delete-btn" type="button" aria-label="Excluir linha" title="Excluir linha">&times;</button>
                 </td>
             </tr>
+            <tr class="photo-row" data-id="${escapeHtml(item.id)}">
+                <td colspan="4">
+                    <div class="photo-groups">
+                        ${PHOTO_GROUPS[type].map(group => renderPhotoGroup(item, group)).join('')}
+                    </div>
+                </td>
+            </tr>
         `).join('');
     });
 }
+
+function renderPhotoGroup(item, group) {
+    const thumbs = itemPhotos(item, group.key)
+        .filter(id => photoCache.has(id))
+        .map(id => `
+            <div class="photo-thumb" data-photo="${escapeHtml(id)}">
+                <img src="${photoCache.get(id)}" alt="Foto ${group.label.toLowerCase()}">
+                <button class="photo-remove" type="button" aria-label="Excluir foto" title="Excluir foto">&times;</button>
+            </div>
+        `).join('');
+
+    return `
+        <div class="photo-group" data-group="${group.key}">
+            <span class="photo-label">${group.label}</span>
+            <div class="photo-list">
+                ${thumbs}
+                <label class="photo-btn" title="Tirar foto">
+                    Câmera
+                    <input type="file" accept="image/*" capture="environment" hidden>
+                </label>
+                <label class="photo-btn" title="Anexar foto da galeria">
+                    Galeria
+                    <input type="file" accept="image/*" multiple hidden>
+                </label>
+            </div>
+        </div>
+    `;
+}
+
+// Adicionar fotos a um item
+async function addPhotos(type, id, group, files) {
+    const item = maintenance[type].find(item => item.id === id);
+    if (!item) return;
+
+    showToast('Processando foto...', 'info');
+
+    let added = 0;
+    for (const file of files) {
+        try {
+            const data = await compressImage(file);
+            const photoId = newId();
+            await photoDB.put(photoId, data);
+            photoCache.set(photoId, data);
+
+            item.photos = item.photos || {};
+            item.photos[group] = [...itemPhotos(item, group), photoId];
+            added++;
+        } catch (error) {
+            console.error('Erro ao salvar foto:', error);
+        }
+    }
+
+    saveToLocalStorage();
+    renderTables();
+
+    if (added === files.length) {
+        showToast(added > 1 ? `${added} fotos adicionadas!` : 'Foto adicionada!', 'success');
+    } else {
+        showToast('Não foi possível salvar alguma foto.', 'error');
+    }
+}
+
+// Remover uma foto
+function removePhoto(type, id, group, photoId) {
+    const item = maintenance[type].find(item => item.id === id);
+    if (!item || !confirm('Excluir esta foto?')) return;
+
+    item.photos[group] = itemPhotos(item, group).filter(p => p !== photoId);
+    deletePhotoData(photoId);
+    saveToLocalStorage();
+    renderTables();
+}
+
+function deletePhotoData(photoId) {
+    photoCache.delete(photoId);
+    photoDB.remove(photoId).catch(error => console.error('Erro ao excluir foto:', error));
+}
+
+// Carregar as fotos salvas no aparelho
+async function loadPhotos() {
+    const ids = [...maintenance.pending, ...maintenance.completed].flatMap(allPhotoIds);
+    for (const id of ids) {
+        try {
+            const data = await photoDB.get(id);
+            if (data) photoCache.set(id, data);
+        } catch (error) {
+            console.error('Erro ao carregar foto:', error);
+        }
+    }
+}
+
+// Reduzir a foto para não ocupar muito espaço (fotos de celular têm vários MB)
+function compressImage(file, maxSize = 1280, quality = 0.75) {
+    return new Promise((resolve, reject) => {
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+
+        img.onload = () => {
+            const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.round(img.width * scale);
+            canvas.height = Math.round(img.height * scale);
+            canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+            URL.revokeObjectURL(url);
+            resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+
+        img.onerror = () => {
+            URL.revokeObjectURL(url);
+            reject(new Error('Arquivo de imagem inválido'));
+        };
+
+        img.src = url;
+    });
+}
+
+// Ver a foto em tela cheia
+function openPhotoViewer(src) {
+    const viewer = document.createElement('div');
+    viewer.className = 'photo-viewer';
+    viewer.innerHTML = `
+        <img src="${src}" alt="Foto ampliada">
+        <button class="photo-viewer-close" type="button" aria-label="Fechar">&times;</button>
+    `;
+    viewer.addEventListener('click', () => viewer.remove());
+    document.body.appendChild(viewer);
+}
+
+// Banco de fotos no aparelho (IndexedDB aguenta muito mais que o localStorage)
+const photoDB = (() => {
+    let dbPromise = null;
+
+    function open() {
+        if (!dbPromise) {
+            dbPromise = new Promise((resolve, reject) => {
+                const request = indexedDB.open('trocaTurnoFotos', 1);
+                request.onupgradeneeded = () => request.result.createObjectStore('fotos');
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        }
+        return dbPromise;
+    }
+
+    async function run(mode, action) {
+        const db = await open();
+        return new Promise((resolve, reject) => {
+            const transaction = db.transaction('fotos', mode);
+            const request = action(transaction.objectStore('fotos'));
+            transaction.oncomplete = () => resolve(request.result);
+            transaction.onerror = () => reject(transaction.error);
+        });
+    }
+
+    return {
+        get: id => run('readonly', store => store.get(id)),
+        put: (id, data) => run('readwrite', store => store.put(data, id)),
+        remove: id => run('readwrite', store => store.delete(id)),
+        clear: () => run('readwrite', store => store.clear())
+    };
+})();
 
 // Linhas com algum conteúdo (linhas totalmente vazias não entram no relatório)
 function filledItems(type) {
     return maintenance[type].filter(item =>
         [item.frota, item.manutencao, item.observacao].some(value => value && value.trim())
+        || allPhotoIds(item).length > 0
     );
 }
 
@@ -142,6 +359,30 @@ function canGenerateReport() {
     }
 
     return true;
+}
+
+// Fotos de um item no relatório
+function reportPhotosRow(type, item) {
+    const groups = PHOTO_GROUPS[type]
+        .map(group => ({ ...group, ids: itemPhotos(item, group.key).filter(id => photoCache.has(id)) }))
+        .filter(group => group.ids.length > 0);
+
+    if (groups.length === 0) return '';
+
+    return `
+        <tr class="report-photos">
+            <td colspan="3">
+                ${groups.map(group => `
+                    <div class="report-photo-group">
+                        <span class="report-photo-label">${group.label}</span>
+                        <div class="report-photo-list">
+                            ${group.ids.map(id => `<img src="${photoCache.get(id)}" alt="">`).join('')}
+                        </div>
+                    </div>
+                `).join('')}
+            </td>
+        </tr>
+    `;
 }
 
 // Preencher o relatório com os dados atuais
@@ -165,6 +406,7 @@ function fillReport() {
                     <td>${escapeHtml(item.manutencao) || '-'}</td>
                     <td>${escapeHtml(item.observacao) || '-'}</td>
                 </tr>
+                ${reportPhotosRow(type, item)}
             `).join('')
             : `<tr><td colspan="3" class="report-empty">${EMPTY_MESSAGES[type]}</td></tr>`;
     });
@@ -228,6 +470,8 @@ function clearAll() {
         selectedShift = null;
         maintenance.pending = [];
         maintenance.completed = [];
+        photoCache.clear();
+        photoDB.clear().catch(error => console.error('Erro ao apagar fotos:', error));
 
         updateShiftButtons();
         renderTables();
@@ -236,7 +480,7 @@ function clearAll() {
     }
 }
 
-// Salvar no LocalStorage
+// Salvar no LocalStorage (as fotos ficam no IndexedDB; aqui só os ids)
 function saveToLocalStorage() {
     const data = {
         selectedShift,
@@ -258,8 +502,8 @@ function loadFromLocalStorage() {
 
         const data = JSON.parse(saved);
         selectedShift = data.selectedShift || null;
-        // Versões antigas usavam ids numéricos; aqui todos viram texto
-        const normalize = list => (list || []).map(item => ({ ...item, id: String(item.id) }));
+        // Versões antigas usavam ids numéricos e não tinham fotos
+        const normalize = list => (list || []).map(item => ({ photos: {}, ...item, id: String(item.id) }));
         maintenance.pending = normalize(data.pendingMaintenance);
         maintenance.completed = normalize(data.completedMaintenance);
 
