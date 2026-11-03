@@ -268,7 +268,8 @@ body {
     border-radius: 4px;
     padding: 6px 10px;
     cursor: pointer;
-    font-size: 0.75rem;
+    font-size: 1rem;
+    line-height: 1;
     transition: var(--transition);
 }
 
@@ -371,6 +372,19 @@ body {
     position: absolute;
     left: -9999px;
     top: -9999px;
+}
+
+/* Posição usada só durante a captura da imagem */
+.report-container.capturing {
+    position: fixed;
+    left: 0;
+    top: 0;
+    z-index: -1;
+}
+
+.report-section td.report-empty {
+    text-align: center;
+    color: var(--text-muted);
 }
 
 .report {
@@ -652,11 +666,29 @@ body {
     opacity: 1;
 }
 
+.toast-warning {
+    background: var(--warning-color);
+}
+
+.toast-error {
+    background: var(--danger-color);
+}
+
+.toast-info {
+    background: var(--primary-color);
+}
+
 /* ===== Print Styles ===== */
+/* Na impressão aparece só o relatório, igual ao da imagem */
 @media print {
+    @page {
+        margin: 12mm;
+    }
+
     body {
         background: white;
-        font-size: 12px;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
     }
 
     .container {
@@ -664,14 +696,22 @@ body {
         padding: 0;
     }
 
-    .shift-section,
-    .action-section {
-        display: none;
+    .header,
+    .main-content,
+    .toast {
+        display: none !important;
     }
 
-    .maintenance-section {
-        box-shadow: none;
-        border: 1px solid #ccc;
+    .report-container {
+        position: static;
+    }
+
+    .report {
+        width: auto;
+        padding: 0;
+    }
+
+    .report-section tr {
         page-break-inside: avoid;
     }
 }
